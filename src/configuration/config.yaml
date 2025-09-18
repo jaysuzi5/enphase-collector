@@ -1,0 +1,3 @@
+logging_info:
+  component: "enphase-collector"
+  component_type: "python"
