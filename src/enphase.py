@@ -201,7 +201,7 @@ class Enphase:
                                  transaction=source_transaction)
         self._logger.transaction_event(EventType.SPAN_END, transaction=source_transaction,
                                        payload=payload, return_code=return_code)
-        return access_token, refresh_token
+        return return_code, access_token, refresh_token
 
     @staticmethod
     def _decode(value):
@@ -231,22 +231,24 @@ class Enphase:
             age_hours = (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600
 
             if age_hours > self._refresh_hours:
-                new_access, new_refresh = self._refresh_access_token()
+                return_code, new_access, new_refresh = self._refresh_access_token()
+                if return_code == 200:
+                    self._access_token = new_access
+                    self._refresh_token = new_refresh
+                    last_updated = datetime.now(timezone.utc).isoformat()
 
-                self._access_token = new_access
-                self._refresh_token = new_refresh
-                last_updated = datetime.now(timezone.utc).isoformat()
-
-                # Update secret
-                secret.string_data = {
-                    "api_key": self._api_key,
-                    "user_id": self._user_id,
-                    "client_secret": self._client_secret,
-                    "access_token": self._access_token,
-                    "refresh_token": self._refresh_token,
-                    "last_updated": last_updated,
-                }
-                self._k8s.patch_namespaced_secret(self._secret_name, self._namespace, secret)
+                    # Update secret
+                    secret.string_data = {
+                        "api_key": self._api_key,
+                        "user_id": self._user_id,
+                        "client_secret": self._client_secret,
+                        "access_token": self._access_token,
+                        "refresh_token": self._refresh_token,
+                        "last_updated": last_updated,
+                    }
+                    self._k8s.patch_namespaced_secret(self._secret_name, self._namespace, secret)
+                else:
+                    payload["message"] = "Exception Refreshing the Tokens"
         except Exception as ex:
             return_code = 500
             message = "Exception getting secret from Kubernetes"
