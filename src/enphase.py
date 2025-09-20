@@ -227,7 +227,8 @@ class Enphase:
             last_updated = data.get("last_updated")
 
             # Check if refresh is needed
-            last_dt = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
+            last_str = (last_updated or "").strip()
+            last_dt = datetime.fromisoformat(last_str.replace("Z", "+00:00"))
             age_hours = (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600
 
             if age_hours > self._refresh_hours:
